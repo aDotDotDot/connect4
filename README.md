@@ -15,12 +15,12 @@ Really simple bot for connect4 with discord.js
 
 You can use these commands : 
 
-`npm test` pour lancer les tests
+`npm test` launch the unit tests
 
-`npm start` pour lancer le bot
+`npm start`  launch the bot
 
-ensuite sur discord :
+then on discord :
 
-`µp4` : lance une partie vs IA
+`µp4` : play vs IA
 
 
