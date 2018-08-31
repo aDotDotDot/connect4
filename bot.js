@@ -30,6 +30,15 @@ emojiToCol.set('\u0034\u20E3',3);
 emojiToCol.set('\u0035\u20E3',4);
 emojiToCol.set('\u0036\u20E3',5);
 emojiToCol.set('\u0037\u20E3',6);
+
+const colToEmoji =  new Map();
+colToEmoji.set(1, '\u0031\u20E3');
+colToEmoji.set(2, '\u0032\u20E3');
+colToEmoji.set(3, '\u0033\u20E3');
+colToEmoji.set(4, '\u0034\u20E3');
+colToEmoji.set(5, '\u0035\u20E3');
+colToEmoji.set(6, '\u0036\u20E3');
+colToEmoji.set(7, '\u0037\u20E3');
 let theMsgWeWorkWith;
 
 const createDisplayGrid = (grid) => {
@@ -101,6 +110,10 @@ const createMessageAndCollector = (message) => {
         });
     });
 };
+let cpt = 0;
+let ordcpt = '+';
+
+const playWithTux = {message_tux:null, game: new connect4(), isStarted:false};
 
 // Initialize Discord Bot
 const bot = new Discord.Client();
@@ -111,7 +124,9 @@ bot.on('ready', (evt) => {
     logger.info('Logged in as: ');
     logger.info(bot.user.username + ' - (' + bot.user.id + ')');
 });
-
+bot.on('disconnect', (evt) => {
+    bot.login(auth.token);
+});
 bot.on('message', (message) => {
     // Our bot needs to know if it will execute a command
     // It will listen for messages that will start with `prefix`
@@ -126,46 +141,82 @@ bot.on('message', (message) => {
             case 'p4':
                 playTheGame(message);
                 createMessageAndCollector(message);
-                /*
-                theMsgWeWorkWith = message.channel.send('Play')
-                .then(function(msg){
-                    msg.react('\u0031\u20E3').then(() => {
-                        msg.react('\u0032\u20E3').then(() => {
-                            msg.react('\u0033\u20E3').then(() => {
-                                msg.react('\u0034\u20E3').then(() => {
-                                    msg.react('\u0035\u20E3').then(() => {
-                                        msg.react('\u0036\u20E3').then(() => {
-                                            msg.react('\u0037\u20E3');
-                                        })
-                                    })
-                                })
-                            })
-                        })
-                    });
-                    var filter = function(reaction, user){
-                        return user.id != bot.user.id;
-                    };
-                    const collector = msg.createReactionCollector(filter, { time: 60000 });
-                    collector.on('collect', function(reaction){
-                        if(emojiToCol.has(reaction.emoji.name)){
-                            let g = runningGames.get(message.author.id);
-                            g.play('R', emojiToCol.get(reaction.emoji.name));
-                            g.IA_cleanSmartPlay('Y');
-                            if(g.isWon())
-                                message.channel.send("PArtie terminée");
-                            console.log(g);
-                        }
-                    });
-                    collector.on('end', function(collected, reason){
-                  
-                    });
-                });*/
             break;
-            case 'p4play':
-                console.log(runningGames.get(message.author.id));
+            case 'p4tux':
+                message.channel.send('!p4');
+            break;
+            case 'pi':
+
             break;
          }
+     }else{
+        //console.log(message);
+        if(message.author.id == '380775694411497493' && message.content.startsWith('Qui veut jouer avec')){
+        //if(message.author.id == '308618848284966912' && message.content.startsWith('Qui veut jouer avec')){
+            playWithTux.message_tux = message;
+            //console.log(playWithTux);
+        }
      }
+});
+
+bot.on('messageUpdate', (oldMessage, newMessage) => {
+    //console.log(oldMessage.id, newMessage.content);
+    if(playWithTux.message_tux && oldMessage.id == playWithTux.message_tux.id){
+        //console.log(newMessage.content);
+        if(!playWithTux.isStarted){
+            if(newMessage.content.startsWith('Voici les règles du jeu')){
+                newMessage.react('\u2705').then( msg => {
+                    playWithTux.isStarted = true;
+                });
+            }
+        }else{
+            if(newMessage.content.startsWith('À toi de jouer <@470634615665590272>')){
+                /*let ccc =`À toi de jouer <@308618848284966912> (jeton <:p4jaune:482157809300144128>)
+
+                1⃣2⃣3⃣4⃣5⃣6⃣7⃣
+                ⚫⚫⚫⚫<:p4jaune:482157809300144128>⚫⚫
+                ⚫⚫⚫⚫<:p4jaune:482157809300144128>⚫⚫
+                ⚫<:p4jaune:482157809300144128>⚫⚫<:p4rouge:482157821324951563>⚫⚫
+                ⚫<:p4rouge:482157821324951563><:p4rouge:482157821324951563>⚫<:p4jaune:482157809300144128>⚫⚫
+                ⚫<:p4jaune:482157809300144128><:p4jaune:482157809300144128>⚫<:p4rouge:482157821324951563>⚫⚫
+                <:p4jaune:482157809300144128><:p4rouge:482157821324951563><:p4rouge:482157821324951563><:p4rouge:482157821324951563><:p4jaune:482157809300144128><:p4rouge:482157821324951563>⚫`;
+                */
+                let cont = newMessage.content.replace('\u0031\u20E3\u0032\u20E3\u0033\u20E3\u0034\u20E3\u0035\u20E3\u0036\u20E3\u0037\u20E3','').split('\n');
+                let lines = new Array();
+                for(let cpt=0; cpt<6; cpt++){
+                    lines[cpt] = cont.pop().replace(/<\:p4rouge\:482157821324951563>/g,'R')
+                                            .replace(/<\:p4jaune\:482157809300144128>/g,'Y')
+                                            .replace(/⚫/g,'0')
+                                            .replace(/\s/g,'').split('');
+                }
+                //console.log(lines);
+                let gTest = new Array();
+                for(let i=0; i<7; i++){
+                    gTest[i] = new Array();
+                    for(let j=0; j<6; j++){
+                        if(lines[j][i] == '0')
+                            gTest[i][j] = 0;
+                        else
+                            gTest[i][j] = lines[j][i];
+                    }
+                }
+                //console.log(gTest);
+                playWithTux.game.grid = gTest;
+                playWithTux.game._turn = 'R';
+                //console.log(playWithTux.game);
+                try{
+                    //console.log(playWithTux.game.IA_cleanSmartPlay('R'));
+                    let lastMove = playWithTux.game.undoLastMove();
+                    let colToPlay = lastMove.col + 1;
+                    //console.log(colToPlay, colToEmoji.get(colToPlay));
+                    newMessage.react(colToEmoji.get(colToPlay));
+                }catch(e){
+                    newMessage.react(playWithTux.game.getRandomInt(1,7));
+                }
+               
+            }
+        }
+    }
 });
 
 bot.login(auth.token);
