@@ -1,6 +1,7 @@
 const fs = require('fs');
 const Jimp = require('jimp');
 
+const {  GifUtil, BitmapImage, GifFrame } = require('gifwrap');//for the gifs
 
 //const chars = ' .,:;i1tfLCG08@';//if we want to inverse colors
 const chars = '@80GCLft1i;:,. ';//white = space  - black = @
@@ -23,11 +24,43 @@ const image2ascii = (sourceImage) => {
     return ascii;
 };
 
+const gifFrameToJimp = (sourceImage) => {
+    // create a Jimp containing a clone of the frame bitmap
+    const baseEmpty = new Jimp(1, 1, 0); // any Jimp
+    baseEmpty.bitmap = new BitmapImage(sourceImage);
+ 
+    // create a Jimp that shares a bitmap with the frame
+    const jShared = new Jimp(1, 1, 0); // any Jimp
+    jShared.bitmap = sourceImage.bitmap;
+    if(jShared.bitmap.height > 350 || jShared.bitmap.width > 350){//waaaaay too big
+        if(jShared.bitmap.height/jShared.bitmap.width <= 1)//landscape
+            jShared.resize(350, Jimp.AUTO);
+        else
+            jShared.resize(Jimp.AUTO, 350);
+    }
+    return jShared;
+};
+
+const animatedGifToAscii = (imgPath) => {
+
+    GifUtil.read(__dirname + '/' + imgPath).then(inputGif => {
+        inputGif.frames.forEach(frame => {
+            console.log(image2ascii(gifFrameToJimp(frame)));
+        });
+    }).catch( e => console.log(e));
+    
+};
+
 Jimp.read('cat.jpg', (err, img) => {
     if (err) throw err;
-    if(img.bitmap.height/img.bitmap.width <= 1)//landscape
-        img.resize(350, Jimp.AUTO);
-    else
-        img.resize(Jimp.AUTO, 350);
+    if(img.bitmap.height > 350 || img.bitmap.width > 350){//waaaaay too big
+        if(img.bitmap.height/img.bitmap.width <= 1)//landscape
+            img.resize(350, Jimp.AUTO);
+        else
+            img.resize(Jimp.AUTO, 350);
+    }
     console.log(image2ascii(img));
   });
+
+
+animatedGifToAscii('cat.gif');
