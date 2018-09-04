@@ -1,5 +1,8 @@
 const fs = require('fs');
 const Jimp = require('jimp');
+const moment = require('moment');
+const request = require('request').defaults({ encoding: null });
+
 
 const {  GifUtil, BitmapImage, GifFrame } = require('gifwrap');//for the gifs
 
@@ -13,15 +16,51 @@ const pixelIntensity = (sourceImage, i, j) => {
     let color = Jimp.intToRGBA(sourceImage.getPixelColor(i, j));
     return 0.25 * (color.r + color.g + color.b + color.a);
 }
-const image2ascii = (sourceImage) => {
-    let ascii = '';
-    for (let j = 0; j < sourceImage.bitmap.height; j++) {
-        for (i = 0; i < sourceImage.bitmap.width; i++) {
-            ascii += chars.charAt(Math.round(pixelIntensity(sourceImage, i, j) / norm));
+const image2ascii = (sourceImage, withDestImage = false, withTextFile = false) => {
+    return new Promise( (resolve, reject) => {
+        if(!withDestImage){
+            let ascii = '';
+            for (let j = 0; j < sourceImage.bitmap.height; j++) {
+                for (let i = 0; i < sourceImage.bitmap.width; i++) {
+                    let theChar = chars.charAt(Math.round(pixelIntensity(sourceImage, i, j) / norm));
+                    ascii += theChar;
+                }
+                ascii += '\n';//end of line to match the next row of pixels
+            }
+            if(!withTextFile)
+                resolve({ascii:ascii, image:null, textFile:null});
+            else{
+                let thePath = `${__dirname}/tmp_imgs/tmp_${moment().valueOf()}.txt`;
+                fs.writeFile(thePath, ascii, (err) => {
+                    if (err) reject(err);
+                    resolve({ascii:ascii, image:null, textFile:thePath});
+                  });
+            }
         }
-        ascii += '\n';//end of line to match the next row of pixels
-    }
-    return ascii;
+        else{
+            Jimp.loadFont(Jimp.FONT_SANS_8_BLACK).then(font => {//only for discord
+                new Jimp(8*sourceImage.bitmap.width, 8*sourceImage.bitmap.height, 0xffffffff, (err, image) => {
+                    if(err)
+                        reject(err);
+                    let ascii = '';
+                    for (let j = 0; j < sourceImage.bitmap.height; j++) {
+                        for (let i = 0; i < sourceImage.bitmap.width; i++) {
+                            let theChar = chars.charAt(Math.round(pixelIntensity(sourceImage, i, j) / norm));
+                            ascii += theChar;
+                            if(theChar !== ' '){
+                                image.print(font, 8*i, 8*j, theChar);
+                            }
+                        }
+                        ascii += '\n';//end of line to match the next row of pixels
+                    }
+                    let thePath = `${__dirname}/tmp_imgs/tmp_${moment().valueOf()}.png`;
+                    image.writeAsync(thePath)
+                    .then( () => resolve({ascii:ascii, image:thePath, textFile:null}))
+                    .catch( e => reject(e));
+                });
+            });
+        }
+    });
 };
 
 const gifFrameToJimp = (sourceImage) => {
@@ -51,7 +90,27 @@ const animatedGifToAscii = (imgPath) => {
     
 };
 
-Jimp.read('cat.jpg', (err, img) => {
+const url2Base64 = (theUrl) => {
+    return new Promise( (resolve, reject) => {
+        request.get(theUrl, function (err, res, body) {
+            if(err)
+                reject(err);
+            resolve(body.toString('base64'));
+        });
+    });
+};
+
+const url2Buffer = (theUrl) => {
+    return new Promise( (resolve, reject) => {
+        request.get(theUrl, function (err, res, body) {
+            if(err)
+                reject(err);
+            Jimp.read(body).then( img => {resolve(img)}).catch(e=>reject(e));
+        });
+    });
+};
+
+/*Jimp.read('cat.png', (err, img) => {
     if (err) throw err;
     if(img.bitmap.height > 350 || img.bitmap.width > 350){//waaaaay too big
         if(img.bitmap.height/img.bitmap.width <= 1)//landscape
@@ -59,8 +118,30 @@ Jimp.read('cat.jpg', (err, img) => {
         else
             img.resize(Jimp.AUTO, 350);
     }
-    console.log(image2ascii(img));
+    image2ascii(img).then( (d) => {
+        console.log(d.ascii);
+    }).catch((err) => {});
   });
+*/
+/*
+animatedGifToAscii('cat.gif');*/
 
-
-animatedGifToAscii('cat.gif');
+const createArtifacts = () => {
+    new Jimp(35, 35, 0xffffffff, (err, image) => {
+        // this image is 32, every pixel is set to 0xFFFFFFFF
+        let oldImage = image.clone();
+        for(let char of chars){
+            if(char === ' ')
+                continue;
+            Jimp.loadFont(Jimp.FONT_SANS_32_BLACK).then(font => {
+                image.print(font, 0, 0, char);
+                image.write(`${__dirname}/artifacts/art_${char}.png`);
+                image = oldImage.clone();
+            });
+        }
+    });
+};
+//createArtifacts();
+module.exports = {image2ascii:image2ascii,
+                  url2Base64Buffer:url2Base64,
+                  url2Buffer:url2Buffer};
