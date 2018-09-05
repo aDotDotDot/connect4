@@ -14,7 +14,7 @@ const pixelIntensity = (sourceImage, i, j) => {
     //mean value of the 'intensity' of a pixel
     //max => white non tranparent
     let color = Jimp.intToRGBA(sourceImage.getPixelColor(i, j));
-    return 0.25 * (color.r + color.g + color.b + color.a);
+    return (1/7) * (color.r*2 + color.g*2 + color.b*2 + color.a);
 }
 const image2ascii = (sourceImage, withDestImage = false, withTextFile = false) => {
     return new Promise( (resolve, reject) => {
@@ -55,7 +55,7 @@ const image2ascii = (sourceImage, withDestImage = false, withTextFile = false) =
                     }
                     let thePath = `${__dirname}/tmp_imgs/tmp_${moment().valueOf()}.png`;
                     image.writeAsync(thePath)
-                    .then( () => resolve({ascii:ascii, image:thePath, textFile:null}))
+                    .then( () => resolve({ascii:ascii, image:thePath, textFile:null, bitmap:image}))
                     .catch( e => reject(e));
                 });
             });
@@ -64,30 +64,47 @@ const image2ascii = (sourceImage, withDestImage = false, withTextFile = false) =
 };
 
 const gifFrameToJimp = (sourceImage) => {
-    // create a Jimp containing a clone of the frame bitmap
-    const baseEmpty = new Jimp(1, 1, 0); // any Jimp
-    baseEmpty.bitmap = new BitmapImage(sourceImage);
- 
     // create a Jimp that shares a bitmap with the frame
     const jShared = new Jimp(1, 1, 0); // any Jimp
     jShared.bitmap = sourceImage.bitmap;
-    if(jShared.bitmap.height > 350 || jShared.bitmap.width > 350){//waaaaay too big
+    if(jShared.bitmap.height > 150 || jShared.bitmap.width > 150){//waaaaay too big
         if(jShared.bitmap.height/jShared.bitmap.width <= 1)//landscape
-            jShared.resize(350, Jimp.AUTO);
+            jShared.resize(150, Jimp.AUTO);
         else
-            jShared.resize(Jimp.AUTO, 350);
+            jShared.resize(Jimp.AUTO, 150);
     }
     return jShared;
 };
 
-const animatedGifToAscii = (imgPath) => {
+const jimpToGifFrame = (img) => {
+    const fShared2 = new GifFrame(1, 1, 0); // any GifFrame
+    fShared2.bitmap = img.bitmap;
+    return fShared2;
+};
 
-    GifUtil.read(__dirname + '/' + imgPath).then(inputGif => {
-        inputGif.frames.forEach(frame => {
-            console.log(image2ascii(gifFrameToJimp(frame)));
-        });
-    }).catch( e => console.log(e));
-    
+const animatedGifToAscii = (imgBuff) => {
+    return new Promise( (resolve, reject) => {
+        let frames = [];
+        const createGif = async (frames) => {
+                let asciiFrames = []
+                for(let i=0; i < frames.length;){
+                    let frAscii = await image2ascii(gifFrameToJimp(frames[i]), true);
+                    asciiFrames.push(jimpToGifFrame(frAscii.bitmap));
+                    i++;
+                }
+                let thePath = `${__dirname}/tmp_imgs/${moment().valueOf()}.gif`;
+                await GifUtil.write(thePath, asciiFrames, {})
+                console.log({image:thePath});
+                return {image:thePath};
+        };
+        GifUtil.read(imgBuff).then(inputGif => {
+            inputGif.frames.forEach( (frame, index, ar) => {
+                frames.push(frame);
+                //TODO : test without the forEach, rendered useless now
+            });
+            resolve(createGif(frames));
+        }).catch( e => reject(e));
+    });    
 };
 
 const url2Base64 = (theUrl) => {
@@ -100,12 +117,31 @@ const url2Base64 = (theUrl) => {
     });
 };
 
-const url2Buffer = (theUrl) => {
+const url2Buffer = (theUrl, withResizing = false) => {
     return new Promise( (resolve, reject) => {
         request.get(theUrl, function (err, res, body) {
             if(err)
                 reject(err);
-            Jimp.read(body).then( img => {resolve(img)}).catch(e=>reject(e));
+            Jimp.read(body).then( img => {
+                if(withResizing){
+                    if(img.bitmap.height > 350 || img.bitmap.width > 350){//waaaaay too big
+                        if(img.bitmap.height/img.bitmap.width <= 1)//landscape
+                            img.resize(350, Jimp.AUTO, null, () => resolve(img));
+                        else
+                            img.resize(Jimp.AUTO, 350, null, () => resolve(img));
+                    }
+                }else
+                    resolve(img)
+            }).catch(e=>reject(e));
+        });
+    });
+};
+const gifUrl2Buffer = (theUrl) => {
+    return new Promise( (resolve, reject) => {
+        request.get(theUrl, function (err, res, body) {
+            if(err)
+                reject(err);
+            resolve(body);//only buffer
         });
     });
 };
@@ -144,4 +180,6 @@ const createArtifacts = () => {
 //createArtifacts();
 module.exports = {image2ascii:image2ascii,
                   url2Base64Buffer:url2Base64,
-                  url2Buffer:url2Buffer};
+                  url2Buffer:url2Buffer,
+                  animatedGifToAscii:animatedGifToAscii,
+                  gifUrl2Buffer:gifUrl2Buffer};

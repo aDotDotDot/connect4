@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const logger = require('winston');
 const connect4 = require('./connect4/connect4.js');
-const { image2ascii, url2base64, url2Buffer } = require('./img2ascii/img2ascii.js');
+const { image2ascii, url2base64, url2Buffer, animatedGifToAscii, gifUrl2Buffer } = require('./img2ascii/img2ascii.js');
 //const url2base64 = require('./img2ascii/img2ascii.js').url2Base64;
 //const url2Buffer = require('./img2ascii/img2ascii.js').url2Buffer;
 
@@ -157,7 +157,7 @@ bot.on('message', (message) => {
                     message.attachments.map( (att) => {
                         message.channel.send(`En raison des limitations de Discord, le processus est assez long pour recréer une image, merci de patienter =)`)
                         .then( msgToDel => {
-                            url2Buffer(att.url).then(bImg => {
+                            url2Buffer(att.url, true).then(bImg => {
                                 image2ascii(bImg, true).then( ob => {
                                     msgToDel.delete().then().catch();
                                     message.channel.send(`${ob.ascii.length} symboles ont été utilisés pour ${att.filename}`);
@@ -178,7 +178,7 @@ bot.on('message', (message) => {
             case 'img2txtfile':
                 if(message.attachments.size > 0){
                     message.attachments.map( (att) => {
-                        url2Buffer(att.url).then(bImg => {
+                        url2Buffer(att.url, true).then(bImg => {
                             image2ascii(bImg, false, true).then( ob => {
                                 message.channel.send(`${ob.ascii.length} symboles ont été utilisés pour ${att.filename}`);
                                 const attachment = new Discord.Attachment(ob.textFile, 'ascii.txt');
@@ -193,6 +193,29 @@ bot.on('message', (message) => {
                     message.channel.send(`Il me faut une image à convertir !`);
                 }
             break;
+            case 'gif2ascii':
+            if(message.attachments.size > 0){
+                message.attachments.map( (att) => {
+                    message.channel.send(`En raison des limitations de Discord, le processus est assez long pour recréer une image, merci de patienter =)`)
+                    .then( msgToDel => {
+                        gifUrl2Buffer(att.url, true).then(bImg => {
+                            animatedGifToAscii(bImg).then( ob => {
+                                msgToDel.delete().then().catch();
+                                //message.channel.send(`${ob.ascii.length} symboles ont été utilisés pour ${att.filename}`);
+                                const attachment = new Discord.Attachment(ob.image, 'ascii.gif');
+                                message.channel.send(attachment);
+                            }).catch( e => {
+                                console.log(e);
+                                message.channel.send(`Le fichier ${att.filename} est invalide`);
+                            })
+                        }).catch(e=>console.log(e));
+                    }).catch( e => console.error);
+
+                });
+            }else{
+                message.channel.send(`Il me faut une image à convertir !`);
+            }
+        break;
          }
      }else{
         //console.log(message);
