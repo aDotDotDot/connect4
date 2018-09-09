@@ -7,7 +7,9 @@ const request = require('request').defaults({ encoding: null });
 const {  GifUtil, BitmapImage, GifFrame } = require('gifwrap');//for the gifs
 
 //const chars = ' .,:;i1tfLCG08@';//if we want to inverse colors
-const chars = '@80GCLft1i;:,. ';//white = space  - black = @
+//const chars = '@80GCLft1i;:,. ';//white = space  - black = @
+const chars = "MNHQ$OC?7>!:-;. ";//test caracteres
+
 const num_c = chars.length - 1;
 let norm  = 255/num_c;//to fit on the previous chars
 const pixelIntensity = (sourceImage, i, j) => {
@@ -16,7 +18,7 @@ const pixelIntensity = (sourceImage, i, j) => {
     let color = Jimp.intToRGBA(sourceImage.getPixelColor(i, j));
     return (1/7) * (color.r*2 + color.g*2 + color.b*2 + color.a);
 }
-const image2ascii = (sourceImage, withDestImage = false, withTextFile = false) => {
+const image2ascii = (sourceImage, withDestImage = false, withTextFile = false, noWrite = false) => {
     return new Promise( (resolve, reject) => {
         if(!withDestImage){
             let ascii = '';
@@ -53,10 +55,15 @@ const image2ascii = (sourceImage, withDestImage = false, withTextFile = false) =
                         }
                         ascii += '\n';//end of line to match the next row of pixels
                     }
-                    let thePath = `${__dirname}/tmp_imgs/tmp_${moment().valueOf()}.png`;
-                    image.writeAsync(thePath)
-                    .then( () => resolve({ascii:ascii, image:thePath, textFile:null, bitmap:image}))
-                    .catch( e => reject(e));
+                    if(!noWrite){
+                        let thePath = `${__dirname}/tmp_imgs/tmp_${moment().valueOf()}.png`;
+                        image.writeAsync(thePath)
+                        .then( () => resolve({ascii:ascii, image:thePath, textFile:null, bitmap:image}))
+                        .catch( e => reject(e));
+                    }else{
+                        resolve({ascii:ascii, image:null, textFile:null, bitmap:image});
+                    }
+
                 });
             });
         }
@@ -88,7 +95,7 @@ const animatedGifToAscii = (imgBuff) => {
         const createGif = async (frames) => {
                 let asciiFrames = []
                 for(let i=0; i < frames.length;){
-                    let frAscii = await image2ascii(gifFrameToJimp(frames[i]), true);
+                    let frAscii = await image2ascii(gifFrameToJimp(frames[i]), true, false, true);
                     asciiFrames.push(jimpToGifFrame(frAscii.bitmap));
                     i++;
                 }
