@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const logger = require('winston');
 const connect4 = require('./connect4/connect4.js');
+let nim = require('./nim/nim.js');
 const { image2ascii, url2base64, url2Buffer, animatedGifToAscii, gifUrl2Buffer } = require('./img2ascii/img2ascii.js');
 //const url2base64 = require('./img2ascii/img2ascii.js').url2Base64;
 //const url2Buffer = require('./img2ascii/img2ascii.js').url2Buffer;
@@ -16,7 +17,7 @@ logger.level = 'debug';
 
 
 
-const playTheGame = (msg) => {
+const p4_playTheGame = (msg) => {
     if(runningGames.has(msg.author.id)){
         console.log(runningGames);
     }else{
@@ -44,7 +45,7 @@ colToEmoji.set(6, '\u0036\u20E3');
 colToEmoji.set(7, '\u0037\u20E3');
 let theMsgWeWorkWith;
 
-const createDisplayGrid = (grid) => {
+const p4_createDisplayGrid = (grid) => {
     let theCurrentGrid = grid.getGridForDisplay();
     let msgTxt = "";
     for(let row of theCurrentGrid){   
@@ -57,7 +58,7 @@ const createDisplayGrid = (grid) => {
     return msgTxt;
 }
 
-const createMessageAndCollector = (message) => {
+const p4_createMessageAndCollector = (message) => {
     message.channel.send(createDisplayGrid(runningGames.get(message.author.id)))
     .then(function(msg){
         theMsgWeWorkWith = msg;
@@ -113,6 +114,97 @@ const createMessageAndCollector = (message) => {
         });
     });
 };
+
+const nim_games = new Map();
+const nim_valid_moves = new Map();
+nim_valid_moves.set('\u0031\u20E3',1);
+nim_valid_moves.set('\u0032\u20E3',2);
+nim_valid_moves.set('\u0033\u20E3',3);
+const nim_playTheGame = (msg, vs = false) => {
+    if(nim_games.has(msg.author.id)){
+        console.log(nim_games);
+    }else{
+        let gg = new nim();
+        gg._players_ids.set(0, msg.guild.members.get(msg.author.id));
+        if(vs)
+            gg._players_ids.set(1, msg.guild.members.get(msg.mentions.users.first().id));
+
+        nim_games.set(msg.author.id, {vs: gg._players_ids.get(1) , game:gg});
+    }
+};
+const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
+    let theGrid = (nim_games.get(message.author.id)).game.displayGrid(true);
+    message.channel.send(`\`\`\`${theGrid}\`\`\``)
+    .then((msg) => {
+        theMsgWeWorkWith = msg;
+        msg.react('\u0031\u20E3').then(() => {
+            msg.react('\u0032\u20E3').then(() => {
+                msg.react('\u0033\u20E3').then(() => {
+
+                })
+            })
+        });
+
+        let filter = (reaction, user) => {
+            return user.id != bot.user.id && user.id == message.author.id;
+        };
+        let collector = msg.createReactionCollector(filter, { time: 60000 });
+        collector.on('collect', (reaction, thisCollector) => {
+            if(nim_valid_moves.has(reaction.emoji.name)){
+                console.log(reaction);
+                reaction.remove(message.author.id).then(()=>{}).catch(()=>{});
+                let g = nim_games.get(message.author.id).game;
+                if(vsIA)
+                    g.take(0,nim_valid_moves.get(reaction.emoji.name));
+                else{
+                    g.take(g._turn,nim_valid_moves.get(reaction.emoji.name));
+                    let secondFilter = (reaction, user) => {
+                        return user.id != bot.user.id && user.id == message.mentions.users.first().id;
+                    };
+                    thisCollector.filter = secondFilter;
+                }
+                if(vsIA && !g._finished){
+                    if(random)
+                        g.IA_Play_Random(1);//playing vs dumb IA 
+                    else
+                        g.IA_Play(1);//playing vs IA
+                }
+                if(g._finished){
+                    theMsgWeWorkWith.edit(`Partie terminée, victoire de ${(g._players_ids.get((g._allMoves[g._allMoves.length - 1]).player))}`)
+                    .then(()=>{
+                        collector.stop();
+                        theMsgWeWorkWith.reactions.map( (e)=>{
+                            e.remove(bot.user.id);
+                        });
+                        nim_games.delete(message.author.id);
+                    })
+                    .catch(e => console.log(e));
+                }
+                else{
+                    theMsgWeWorkWith.edit(`${(g._players_ids.get((g._allMoves[g._allMoves.length - 1]).player))} retire ${(g._allMoves[g._allMoves.length - 1]).take} bâtonnets, il en reste ${(g._current_pos+1)}\n\`\`\`${g.displayGrid(true)}\`\`\``)
+                    .then(()=>{
+                        console.log('coucou');
+                    })
+                    .catch(e => console.log(e));
+                }
+                console.log(g);
+            }
+        });
+        collector.on('end', function(collected, reason){
+            if(reason == 'time'){
+                theMsgWeWorkWith.edit(`Partie terminée, personne n'a joué depuis 60s`);
+                theMsgWeWorkWith.reactions.map( (e)=>{
+                    e.remove(bot.user.id);
+                });
+            }
+        });
+    });
+}
+
+
+
+
+
 let cpt = 0;
 let ordcpt = '+';
 
@@ -143,8 +235,8 @@ bot.on('message', (message) => {
         args = args.splice(1);
         switch(cmd) {
             case 'p4':
-                playTheGame(message);
-                createMessageAndCollector(message);
+                p4_playTheGame(message);
+                p4_createMessageAndCollector(message);
             break;
             case 'p4tux':
                 message.channel.send('!p4');
@@ -203,7 +295,9 @@ bot.on('message', (message) => {
                                 msgToDel.delete().then().catch();
                                 //message.channel.send(`${ob.ascii.length} symboles ont été utilisés pour ${att.filename}`);
                                 const attachment = new Discord.Attachment(ob.image, 'ascii.gif');
-                                message.channel.send(attachment);
+                                message.channel.send(attachment).then(()=>{}).catch(()=>{
+                                    message.channel.send("Une erreur s'est produite, le fichier est probablement trop gros pour être envoyé en pièce jointe");
+                                });
                             }).catch( e => {
                                 console.log(e);
                                 message.channel.send(`Le fichier ${att.filename} est invalide`);
@@ -216,7 +310,19 @@ bot.on('message', (message) => {
                 message.channel.send(`Il me faut une image à convertir !`);
             }
         break;
-         }
+        case 'nimvsIA':
+            nim_playTheGame(message, false);
+            nim_createMsgAndCollector(message, true);
+        break;
+        case 'nimvs':
+            nim_playTheGame(message, true);
+            nim_createMsgAndCollector(message, false, false);
+        break;
+        case 'nimvsIArandom':
+            nim_playTheGame(message, false);
+            nim_createMsgAndCollector(message, true, true);
+        break;
+        }
      }else{
         //console.log(message);
         if(message.author.id == '380775694411497493' && message.content.startsWith('Qui veut jouer avec')){

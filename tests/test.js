@@ -1,5 +1,6 @@
 const chai = require('chai');
 let connect4 = require('../connect4/connect4.js');
+let nim = require('../nim/nim.js');
 let should = chai.should();
 
 describe('Unit tests - Puissance 4', () => {
@@ -72,6 +73,36 @@ describe('Unit tests - Puissance 4', () => {
         //game.displayGrid();
         game.isPlayable().should.be.false;
         (game.isWon()||game.isDraw()).should.be.true;
+        done();
+    });
+});
+
+describe('Unit tests - Nim', () => {
+    it('it should create an empty grid', (done) => {
+        let game = new nim();
+        let grid = game.grid;
+        console.log(game.grid);
+        (game.grid).should.be.an('array')
+        done();
+    });
+    it('it should play between IA', (done) => {
+        let game = new nim();
+        let turn = game._turn;
+        game._chatty=true;
+        console.log(game.displayGrid());
+        console.log(game.displayGrid(true));
+
+        (game.grid).should.be.an('array');
+        while(!game._finished){
+            game.IA_Play(turn);
+            console.log(game.displayGrid());
+            turn = game._turn;
+            if(!game._finished){
+                game.IA_Play_Random(turn);
+                turn = game._turn;
+                console.log(game.displayGrid(true));
+            }
+        }
         done();
     });
 });
