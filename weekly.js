@@ -181,7 +181,7 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
                     .catch(e => console.log(e));
                 }
                 else{
-                    theMsgWeWorkWith.edit(`${(g._players_ids.get((g._allMoves[g._allMoves.length - 1]).player))} retire ${(g._allMoves[g._allMoves.length - 1]).take} bâtonnets, il en reste ${(g._current_pos+1)}\n\`\`\`${g.displayGrid(true)}\`\`\``)
+                    theMsgWeWorkWith.edit(`${(g._players_ids.get((g._allMoves[g._allMoves.length - 1]).player))} retire ${(g._allMoves[g._allMoves.length - 1]).take} bâtonnet${(((g._allMoves[g._allMoves.length - 1]).take<2)?'':'s')}, il en reste ${(g._current_pos+1)}\n\`\`\`${g.displayGrid(true)}\`\`\``)
                     .then(()=>{
                         console.log('coucou');
                     })
@@ -315,8 +315,13 @@ bot.on('message', (message) => {
             nim_createMsgAndCollector(message, true);
         break;
         case 'nimvs':
-            nim_playTheGame(message, true);
-            nim_createMsgAndCollector(message, false, false);
+            if(message.mentions.users.size > 0){
+                nim_playTheGame(message, true);
+                nim_createMsgAndCollector(message, false, false);
+            }else{
+                message.channel.send("Il te faut un adversaire");
+            }
+
         break;
         case 'nimvsIArandom':
             nim_playTheGame(message, false);
