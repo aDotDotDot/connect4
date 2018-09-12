@@ -5,7 +5,7 @@ Really simple bot for connect4 with discord.js
 
 # Files
 
-`bot.js` is the main file where the bot lies
+`weekly.js` is the main file where the bot lies
 
 `connect4/` folder contains the `connect4.js` file with all the logic
 
