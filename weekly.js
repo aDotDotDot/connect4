@@ -120,11 +120,11 @@ const nim_valid_moves = new Map();
 nim_valid_moves.set('\u0031\u20E3',1);
 nim_valid_moves.set('\u0032\u20E3',2);
 nim_valid_moves.set('\u0033\u20E3',3);
-const nim_playTheGame = (msg, vs = false) => {
+const nim_playTheGame = (msg, vs = false, mod = false) => {
     if(nim_games.has(msg.author.id)){
         console.log(nim_games);
     }else{
-        let gg = new nim();
+        let gg = new nim(mod);
         gg._players_ids.set(0, msg.guild.members.get(msg.author.id));
         if(vs)
             gg._players_ids.set(1, msg.guild.members.get(msg.mentions.users.first().id));
@@ -151,7 +151,7 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
         let collector = msg.createReactionCollector(filter, { time: 60000 });
         collector.on('collect', (reaction, thisCollector) => {
             if(nim_valid_moves.has(reaction.emoji.name)){
-                console.log(reaction);
+                //console.log(reaction);
                 reaction.remove(message.author.id).then(()=>{}).catch(()=>{});
                 let g = nim_games.get(message.author.id).game;
                 if(vsIA)
@@ -159,9 +159,11 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
                 else{
                     g.take(g._turn,nim_valid_moves.get(reaction.emoji.name));
                     let secondFilter = (reaction, user) => {
-                        return user.id != bot.user.id && user.id == message.mentions.users.first().id;
+                        console.log(user.id, g._players_ids.get(g._turn).id );
+                        return user.id != bot.user.id && user.id == g._players_ids.get(g._turn).id;
                     };
                     thisCollector.filter = secondFilter;
+                    console.log(collector.filter, thisCollector.filter);
                 }
                 if(vsIA && !g._finished){
                     if(random)
@@ -170,7 +172,7 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
                         g.IA_Play(1);//playing vs IA
                 }
                 if(g._finished){
-                    theMsgWeWorkWith.edit(`Partie terminée, victoire de ${(g._players_ids.get((g._allMoves[g._allMoves.length - 1]).player))}`)
+                    theMsgWeWorkWith.edit(`Partie terminée, victoire de ${(g._players_ids.get(g._winner))}`)
                     .then(()=>{
                         collector.stop();
                         theMsgWeWorkWith.reactions.map( (e)=>{
@@ -183,11 +185,11 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
                 else{
                     theMsgWeWorkWith.edit(`${(g._players_ids.get((g._allMoves[g._allMoves.length - 1]).player))} retire ${(g._allMoves[g._allMoves.length - 1]).take} bâtonnet${(((g._allMoves[g._allMoves.length - 1]).take<2)?'':'s')}, il en reste ${(g._current_pos+1)}\n\`\`\`${g.displayGrid(true)}\`\`\``)
                     .then(()=>{
-                        console.log('coucou');
+                        //console.log('coucou');
                     })
                     .catch(e => console.log(e));
                 }
-                console.log(g);
+                //console.log(g);
             }
         });
         collector.on('end', function(collected, reason){
@@ -311,12 +313,18 @@ bot.on('message', (message) => {
             }
         break;
         case 'nimvsIA':
-            nim_playTheGame(message, false);
+            if(args[0] == 'mod')
+                nim_playTheGame(message, false, true);
+            else
+                nim_playTheGame(message, false);
             nim_createMsgAndCollector(message, true);
         break;
         case 'nimvs':
             if(message.mentions.users.size > 0){
-                nim_playTheGame(message, true);
+                if(args[0] == 'mod')
+                    nim_playTheGame(message, true, true);
+                else
+                    nim_playTheGame(message, true);
                 nim_createMsgAndCollector(message, false, false);
             }else{
                 message.channel.send("Il te faut un adversaire");
@@ -324,7 +332,10 @@ bot.on('message', (message) => {
 
         break;
         case 'nimvsIArandom':
-            nim_playTheGame(message, false);
+            if(args[0] == 'mod')
+                nim_playTheGame(message, false, true);
+            else
+                nim_playTheGame(message, false);
             nim_createMsgAndCollector(message, true, true);
         break;
         }
@@ -335,6 +346,13 @@ bot.on('message', (message) => {
             playWithTux.message_tux = message;
             //console.log(playWithTux);
         }
+        if(message.author.id == '380775694411497493' && (message.content.startsWith('Bravo') || message.content.startsWith("Personne m'a répondu pendant 2 minutes"))){
+            //if(message.author.id == '308618848284966912' && message.content.startsWith('Qui veut jouer avec')){
+                playWithTux.message_tux = null;
+                playWithTux.game = new connect4();
+                playWithTux.isStarted = false;
+                //console.log(playWithTux);{message_tux:null, game: new connect4(), isStarted:false}
+            }
      }
 });
 
@@ -384,13 +402,13 @@ bot.on('messageUpdate', (oldMessage, newMessage) => {
                 playWithTux.game._turn = 'R';
                 //console.log(playWithTux.game);
                 try{
-                    //console.log(playWithTux.game.IA_cleanSmartPlay('R'));
+                    console.log(playWithTux.game.IA_cleanSmartPlay('R'));
                     let lastMove = playWithTux.game.undoLastMove();
                     let colToPlay = lastMove.col + 1;
                     //console.log(colToPlay, colToEmoji.get(colToPlay));
                     newMessage.react(colToEmoji.get(colToPlay));
                 }catch(e){
-                    newMessage.react(playWithTux.game.getRandomInt(1,7));
+                    newMessage.react(colToEmoji.get(playWithTux.game.getRandomInt(1,7)));
                 }
                
             }

@@ -5,7 +5,7 @@ const exclamation_mark = '\u2757';
 const board_size = 30;
 const max_per_turn = 3;
 module.exports = class Nim {
-    constructor() {
+    constructor(mod = false) {
         //we will have an array representing the board
         this._chatty = false;
         this._grid = new Array();
@@ -14,6 +14,7 @@ module.exports = class Nim {
         this._players_ids = new Map([[0,'Bot n°0'],[1,'Bot n°1']]);
         this._turn = 0;
         this._finished = false;
+        this._mod = mod;//to play the version when last object lose
         for(let col = 0; col < board_size; col++){
             this._grid[col] = 1;
         }
@@ -48,7 +49,10 @@ module.exports = class Nim {
             if(this._chatty)
                 console.log(`Winning move by ${player} taking ${nb} objects`);
             this._allMoves.push({player:player, take:nb, remaining:0});
-            this._winner = player;
+            if(!this._mod)
+                this._winner = player;
+            else
+                this._winner = (player + 1)%2;
             this._finished = true;
             return true;
         }
@@ -70,18 +74,35 @@ module.exports = class Nim {
 
     IA_Play(player){
         let remaining_obj = this._current_pos + 1;
-        console.log(`${remaining_obj} remaining`);
+        //console.log(`${remaining_obj} remaining`);
+        if(this._mod && remaining_obj == (max_per_turn + 1)){
+            if(this._chatty)
+                console.log(`IA winning mod`);
+            this.take(player, max_per_turn);
+            return;
+        }
         if( remaining_obj <= max_per_turn){//we win this turn
             if(this._chatty)
                 console.log(`IA winning`);
-            this.take(player, max_per_turn);
-        }else{//we try to win by getting a multiple of 4
+            if(this._mod)
+                this.take(player, max_per_turn - 1);//version where last stick lose
+            else
+                this.take(player, max_per_turn);
+        }else{//we try to win by getting a multiple of 4 (or a multiple of 4 + 1 in the mod version)
             let wait = true;
-            for(let n = 3; n > 0; n--){
-                if((remaining_obj - n)%4 == 0){
-                    this.take(player, n);
-                    wait = false;
-                    break;
+            for(let n = max_per_turn; n > 0; n--){
+                if(!this._mod){
+                    if((remaining_obj - n)%4 == 0){
+                        this.take(player, n);
+                        wait = false;
+                        break;
+                    }
+                }else{
+                    if((remaining_obj - n)%4 == 1){
+                        this.take(player, n);
+                        wait = false;
+                        break;
+                    }
                 }
             }
             if(wait)
@@ -90,13 +111,16 @@ module.exports = class Nim {
     }
     IA_Play_Random(player){
         let remaining_obj = this._current_pos + 1;
-        console.log(`${remaining_obj} remaining`);
+        //console.log(`${remaining_obj} remaining`);
         if( remaining_obj <= max_per_turn){//we win this turn
             if(this._chatty)
                 console.log(`IA winning`);
-            this.take(player, max_per_turn);
-        }else{//we try to win by getting a multiple of 4
-            this.take(player,this.getRandomInt(1,3));//cannot win now, playing it slow
+            if(this._mod)
+                this.take(player, max_per_turn - 1);//version where last stick lose
+            else
+                this.take(player, max_per_turn);
+        }else{
+            this.take(player,this.getRandomInt(1,3));//cannot win now, playing it randomly
         }
     }
 }
