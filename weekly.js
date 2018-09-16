@@ -2,6 +2,7 @@ const Discord = require('discord.js');
 const logger = require('winston');
 const connect4 = require('./connect4/connect4.js');
 let nim = require('./nim/nim.js');
+const helper = require('../help-generator/help.js');
 const { image2ascii, url2base64, url2Buffer, animatedGifToAscii, gifUrl2Buffer } = require('./img2ascii/img2ascii.js');
 //const url2base64 = require('./img2ascii/img2ascii.js').url2Base64;
 //const url2Buffer = require('./img2ascii/img2ascii.js').url2Buffer;
@@ -48,7 +49,7 @@ let theMsgWeWorkWith;
 const p4_createDisplayGrid = (grid) => {
     let theCurrentGrid = grid.getGridForDisplay();
     let msgTxt = "";
-    for(let row of theCurrentGrid){   
+    for(let row of theCurrentGrid){
         msgTxt += row.join('')
         .replace(/0/g,':full_moon: ')
         .replace(/Y/g,':angry: ')
@@ -109,9 +110,7 @@ const p4_createMessageAndCollector = (message) => {
                 console.log(g);
             }
         });
-        collector.on('end', function(collected, reason){
-      
-        });
+        collector.on('end', function(collected, reason){});
     });
 };
 
@@ -148,7 +147,7 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
         let filter = (reaction, user) => {
             return user.id != bot.user.id && user.id == message.author.id;
         };
-        let collector = msg.createReactionCollector(filter, { time: 60000 });
+        let collector = msg.createReactionCollector(filter, { time: 300000 });
         collector.on('collect', (reaction, thisCollector) => {
             if(nim_valid_moves.has(reaction.emoji.name)){
                 //console.log(reaction);
@@ -194,7 +193,7 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
         });
         collector.on('end', function(collected, reason){
             if(reason == 'time'){
-                theMsgWeWorkWith.edit(`Partie terminée, personne n'a joué depuis 60s`);
+                theMsgWeWorkWith.edit(`Partie terminée, personne n'a joué depuis 5 minutes`);
                 theMsgWeWorkWith.reactions.map( (e)=>{
                     e.remove(bot.user.id);
                 });
@@ -236,6 +235,12 @@ bot.on('message', (message) => {
         let cmd = args[0];
         args = args.splice(1);
         switch(cmd) {
+            case 'help':
+                let h = new helper.HelpBot('weekly');
+                h.loadConfig().then(()=>{
+                    message.channel.send({embed:h.generateDiscordHelp()});
+                }).catch(e=>console.log(e))
+            break;
             case 'p4':
                 p4_playTheGame(message);
                 p4_createMessageAndCollector(message);
