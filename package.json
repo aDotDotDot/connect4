@@ -8,7 +8,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "cd tests && mocha test.js",
+    "test": "cd tests && mocha test-simon.js",
     "start": "node bot.js"
   },
   "dependencies": {

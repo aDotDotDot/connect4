@@ -1,7 +1,8 @@
 const Discord = require('discord.js');
 const logger = require('winston');
 const connect4 = require('./connect4/connect4.js');
-let nim = require('./nim/nim.js');
+const nim = require('./nim/nim.js');
+const {Simon, SimonDiscordPlayer} = require('./simon/simon.js');
 const helper = require('../help-generator/help.js');
 const { image2ascii, url2base64, url2Buffer, animatedGifToAscii, gifUrl2Buffer } = require('./img2ascii/img2ascii.js');
 //const url2base64 = require('./img2ascii/img2ascii.js').url2Base64;
@@ -202,8 +203,11 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
     });
 }
 
+let simon_players = new Map();
 
+const simonPlay = (message) => {
 
+}
 
 
 let cpt = 0;
@@ -342,6 +346,16 @@ bot.on('message', (message) => {
             else
                 nim_playTheGame(message, false);
             nim_createMsgAndCollector(message, true, true);
+        break;
+        case 'yolo':
+        return;
+            let ff = async ()=>{
+                let sim = new Simon();
+                let dd = new SimonDiscordPlayer(message, bot);
+                await dd.play();
+            };
+            ff();
+
         break;
         }
      }else{
