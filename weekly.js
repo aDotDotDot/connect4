@@ -2,7 +2,8 @@ const Discord = require('discord.js');
 const logger = require('winston');
 const connect4 = require('./connect4/connect4.js');
 const nim = require('./nim/nim.js');
-const {Simon, SimonDiscordPlayer} = require('./simon/simon.js');
+const {Simon, SimonDiscordPlayer, SimonSound} = require('./simon/simon.js');
+const fs = require('fs');
 const helper = require('../help-generator/help.js');
 const { image2ascii, url2base64, url2Buffer, animatedGifToAscii, gifUrl2Buffer } = require('./img2ascii/img2ascii.js');
 //const url2base64 = require('./img2ascii/img2ascii.js').url2Base64;
@@ -204,9 +205,135 @@ const nim_createMsgAndCollector = (message, vsIA = false, random = false) => {
 }
 
 let simon_players = new Map();
+let simon_lost = new Map();
 
-const simonPlay = (message) => {
+const simonEmojis = new Map([[0,"\u26EA"],[1,"\u23F0"],[2,"\u260E"],[3,"\uD83D\uDE84"]]);
+const emojisSimon = new Map([["\u26EA",0],["\u23F0",1],["\u260E",2],["\uD83D\uDE84",3]]);
 
+const simonTurn = (message, client, connection, game, audioSequence ) => {
+    let sequence = game.sequence;
+    console.log(sequence);
+    return new Promise( (resolve, reject) => {
+        const dispatcher = connection.playFile(audioSequence);
+        dispatcher.on('end', (reasonD)=>{
+            message.channel.send(`Préparez-vous, attendez les émojis`).then( (msg) => {
+                msg.react("\u26EA").then(()=>{
+                    msg.react("\u23F0").then(()=>{
+                        msg.react("\u260E").then(()=>{
+                            msg.react("\uD83D\uDE84").then(()=>{
+                                let timeAllowed = 1000*(8 + sequence.length);
+                                msg.edit(`Vous avez ${(timeAllowed/1000)}s pour refaire la séquence entière`);
+                                let filter = (reaction, user) => {
+                                    return user.id != client.user.id && emojisSimon.has(reaction.emoji.name);
+                                };
+                                let collector = msg.createReactionCollector(filter, { time: timeAllowed });
+                                collector.on('collect', (reaction, thisCollector) => {
+                                    reaction.users.map( (user) => {
+                                        if(user.id == client.user.id) return;
+                                        if(simon_players.has(user.id)){
+                                            let currentSeqUser = simon_players.get(user.id);
+                                            let emojiId = emojisSimon.get(reaction.emoji.name);
+                                            currentSeqUser.push(emojiId);
+                                            simon_players.set(user.id, currentSeqUser);
+                                            reaction.remove(user).catch(e=>console.log);
+                                        }
+                                    });
+                                });
+                                collector.on('end', (reason, collected) => {
+                                    let lost_at_this_round = [];
+                                    simon_players.forEach( (v,k) => {
+                                        if(v.length != sequence.length){
+                                            simon_players.delete(k);
+                                            lost_at_this_round.push(message.guild.members.find(user => user.id == k));
+                                            simon_lost.set(k, {user_seq:v, good_seq:sequence});
+                                            return;
+                                        }
+                                        else{
+                                            for(let i = 0; i < sequence.length; i++){
+                                                if(sequence[i]!=v[i]){
+                                                    simon_players.delete(k);
+                                                    lost_at_this_round.push(message.guild.members.find(user => user.id == k));
+                                                    simon_lost.set(k, {user_seq:v, good_seq:sequence});
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                        simon_players.set(k, []);
+                                    });
+                                    let editMsg = ``;
+                                    if(lost_at_this_round.length>0){
+                                        let lost_text = ``;
+                                        for(let u of lost_at_this_round){
+                                            lost_text += `${u} `;
+                                        }
+                                        editMsg = `Nous venons de perdre ${lost_text}\n`;
+                                    }
+                                    if(simon_players.size>0){
+                                        editMsg += `${simon_players.size} joueur${((simon_players.size>1)?'s':'')} encore en lice.\n`;
+                                        editMsg += `Préparez-vous pour la suite`;
+                                    }
+                                    msg.edit(editMsg).then(()=>{
+                                        fs.unlink(audioSequence, (err)=>{
+                                          resolve(msg);  
+                                        });
+                                    });
+                                });
+                            })
+                        })
+                    })
+                });
+            }).catch(e=>reject(e));
+        })
+    });
+}
+
+const sequenceToEmojis = (sequence)=>{
+    let ms = ``;
+    for(let i of sequence){
+        ms+=`${simonEmojis.get(i)} `;
+    }
+    return ms;
+};
+
+const simonLoop = async (message, client, connection, game) => {
+    while(simon_players.size > 0){
+        //console.log('loop');
+        game.next();
+        let audioSequence = await game.createSequence();
+        let msg = await simonTurn(message, client, connection, game, audioSequence);
+        setTimeout(() => {
+            msg.delete();
+        }, 3500);
+    }
+    //console.log("simon finished");
+    let ms = `Tout le monde a perdu, partie terminée sur la séquence `;
+    ms+=sequenceToEmojis(game.sequence)+`\n`;
+    simon_lost.forEach( (v,k)=>{
+        let us = message.guild.members.find(user => user.id == k);
+        ms+= `${us} a perdu au tour ${v.good_seq.length} `;
+        if(v.user_seq.length == 0)
+            ms+= `en ne faisant rien\n`;
+        else
+            ms+= `avec la séquence ${sequenceToEmojis(v.user_seq)}\n`;
+    });
+    message.channel.send(ms);
+    current_simon_game = false;
+    connection.disconnect();
+    return "game finished";
+}
+let current_simon_game = false;
+let audioChanPlay = new Map([['437369409091272725','437691550622023680'],['401667451189985280','401669627391770625']])
+
+const simonSoundPlay = async (message, client, game) => {
+    simon_lost = new Map();
+    let channel = client.channels.get(audioChanPlay.get(message.guild.id));
+    channel.join().then((connection) => {
+        simonLoop(message, client, connection, game);
+    }).catch(e=>{
+        console.error(e);
+        current_simon_game = false;
+        message.channel.send('Impossible de rejoindre le vocal, partie annulée');
+    });
 }
 
 
@@ -347,15 +474,53 @@ bot.on('message', (message) => {
                 nim_playTheGame(message, false);
             nim_createMsgAndCollector(message, true, true);
         break;
-        case 'yolo':
-        return;
-            let ff = async ()=>{
-                let sim = new Simon();
-                let dd = new SimonDiscordPlayer(message, bot);
-                await dd.play();
-            };
-            ff();
+        case 'simon':
+            if(!current_simon_game){
+                message.channel.send(`Qui pour une partie de Simon ?`).then( msg=>{
+                    msg.react("\u270B").then(()=>{
+                        let filter = (reaction, user) => {
+                            return user.id != bot.user.id &&  reaction.emoji.name == "\u270B";
+                        };
+                        let collector = msg.createReactionCollector(filter, { time: 15000 });
+                        collector.on('end', (collected, reason)=>{
+                            try{
+                                collected.get("\u270B").users.map( (user)=>{
+                                    if(user.id != bot.user.id){
+                                        simon_players.set(user.id, []);
+                                    }
+                                });
+                                msg.clearReactions();
+                                if(simon_players.size > 0){
+                                    let m = `Nous avons donc ${simon_players.size} joueur${((simon_players.size > 1)?'s':'')} :\n`;
+                                    simon_players.forEach( (v,k) => {
+                                        let us = message.guild.members.find(user => user.id == k);
+                                        m += `${us}\n`;
+                                    });
+                                    m+=`La partie va démarrer dans **5** secondes, **rejoignez vite le vocal si ce n'est pas fait**`
+                                    msg.edit(m).then(()=>{
+                                       setTimeout(() => {
+                                            msg.delete();
+                                            let g = new SimonSound();
+                                            current_simon_game = true;
+                                            simonSoundPlay(message, bot, g);
+                                       }, 5000); 
+                                    });
+                                }else{
+                                    msg.edit(`Ok, personne ne veut jouer :(`);
+                                }
+                            }catch(e){
+                                msg.clearReactions();
+                                msg.edit(`Ok, personne ne veut jouer :(`);
+                            }
+                        });
+                    })
+                }).catch(e=>console.error);
+            }else{
+                message.channel.send('une partie est déjà en cours');
+            }
 
+            /*let g = new SimonSound();
+            simonSoundPlay(message, bot, g);*/
         break;
         }
      }else{

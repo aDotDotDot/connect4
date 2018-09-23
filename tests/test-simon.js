@@ -1,5 +1,6 @@
 const chai = require('chai');
-let simon = require('../simon/simon.js');
+let simon = require('../simon/simon.js').Simon;
+let sound = require('../simon/simon.js').SimonSound;
 let should = chai.should();
 
 describe('Unit tests - Simon', () => {
@@ -40,6 +41,16 @@ describe('Unit tests - Simon', () => {
         game.sequence = [2,3,1,0];
         let m = game.mapped;
         m.should.be.deep.equal([[0,3],[42],[2],[1]]);
+        done();
+    });
+    it('it should be able to play sound', (done) => {
+        let game = new sound();
+        game.next();
+        game.next();
+        game.next();
+        game.next();
+        game.next();
+        game.createSequence();
         done();
     });
 });

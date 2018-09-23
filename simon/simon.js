@@ -1,4 +1,4 @@
-//const ffmpeg = require('fluent-ffmpeg');
+const ffmpeg = require('fluent-ffmpeg');
 const moment = require('moment');
 const number_of_elements = 4;
 class Simon{
@@ -41,6 +41,45 @@ class Simon{
         }, []);
     }
 }
+
+class SimonSound extends Simon{
+    constructor(){
+        super();
+        this._mapValues.set(0, `${__dirname}/church.wav`);
+        this._mapValues.set(1, `${__dirname}/clock.wav`);
+        this._mapValues.set(2, `${__dirname}/phone.wav`);
+        this._mapValues.set(3, `${__dirname}/train.wav`);
+    }
+    createSequence(){
+        return new Promise( (resolve, reject) => {
+            if(this._sequence.length > 0){
+                let seq = ffmpeg(`${__dirname}/silence.wav`);
+                seq.input(`${__dirname}/silence.wav`);
+                seq.input(`${__dirname}/silence.wav`);
+                seq.input(`${__dirname}/silence.wav`);//around 1s of silence at the beginning for lag
+                for(let i = 0; i < this._sequence.length; i++){
+                    seq.input(this._mapValues.get(this._sequence[i]));
+                    seq.input(`${__dirname}/silence.wav`);
+                }
+                seq.input(`${__dirname}/silence.wav`);
+                seq.input(`${__dirname}/silence.wav`);
+                seq.input(`${__dirname}/silence.wav`);
+                let ret = `${__dirname}/tmp/sequence_${moment().valueOf()}.mp3`;
+                seq.on('error', function(err) {
+                    console.log('An error occurred: ' + err.message);
+                })
+                .on('end', function() {
+                    //console.log('Merging finished !');
+                    resolve(ret);
+                })
+                .mergeToFile(`${ret}`, `${__dirname}/tmp/`);
+            }else{
+                reject('no sequence');
+            }
+        });
+    }
+}
+
 
 class SimonDiscordPlayer{
     constructor(msg, client){
@@ -165,7 +204,7 @@ Le jeu démarrera dans 10 secondes`).then(msg=>{
     }
 }
 
-module.exports = {Simon: Simon, SimonDiscordPlayer:SimonDiscordPlayer};
+module.exports = {Simon: Simon, SimonDiscordPlayer: SimonDiscordPlayer, SimonSound:SimonSound};
 /*
 simon sound => normal
 simon images
