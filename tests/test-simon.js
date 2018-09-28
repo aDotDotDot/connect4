@@ -45,11 +45,7 @@ describe('Unit tests - Simon', () => {
     });
     it('it should be able to play sound', (done) => {
         let game = new sound();
-        game.next();
-        game.next();
-        game.next();
-        game.next();
-        game.next();
+        game.sequence = [0,1,2,3];
         game.createSequence();
         done();
     });

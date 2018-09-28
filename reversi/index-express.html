@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<canvas id="theBoard" width="520" height="520" style="border-left:5px solid #DAA520; border-top:5px solid #DAA520; background-color: #DAA520">
+Your browser does not support the canvas element.
+</canvas>
+<div>
+    <input type='button' onclick="newGame()" value="New game" />
+</div>
+<script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+socket.on('game ready', (data) => {
+    drawBoard(data);
+});
+socket.on('turn', data => {
+    drawBoard(data);
+})
+socket.on('game finished', data => {
+    console.log(data.transcript);
+    drawBoard(data.grid);
+    setTimeout(() => {
+        alert(`Game Over !\nWhite ${data._currentCount['W']}\nBlack ${data._currentCount['B']}`);
+    }, 250);
+});
+</script>
+<script>
+
+const itemColor = {'W': '#FFFFFF', 'B':'#000000'};
+const canvas = document.getElementById("theBoard");
+const ctx = canvas.getContext("2d");
+const drawBoard = (grid) => {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const boardColor = '#345678';
+    ctx.fillStyle = boardColor;
+    for(let i=0; i<8; i++){
+        for(let j=0;j<8;j++){
+        ctx.fillRect(i*65, j*65, 60, 60);
+        }
+    }
+    if(grid)
+        drawItems(grid);
+};
+const drawItems = (grid) => {
+    ctx.fillStyle = itemColor['W'];
+    for(let row = 0; row < 8; row++){
+        for(let col = 0; col < 8; col++){
+            if(grid[row][col] === 'W'){
+                ctx.beginPath();
+                ctx.ellipse(30 + col*65, 30 + row*65, 25, 25, 2 * Math.PI , 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+    }
+    ctx.fillStyle = itemColor['B'];
+    for(let row = 0; row < 8; row++){
+        for(let col = 0; col < 8; col++){
+            if(grid[row][col] === 'B'){
+                ctx.beginPath();
+                ctx.ellipse(30 + col*65, 30 + row*65, 25, 25, 2 * Math.PI , 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+    }
+}
+
+const getRelativeCoords = (event) =>{
+    return { x: event.offsetX, y: event.offsetY,
+        col: Math.floor(Math.max(event.offsetX,0)/65), row: Math.floor(Math.max(0,event.offsetY)/65) };
+}
+const userPlay = (event) => {
+    let clickPos = getRelativeCoords(event);
+    socket.emit('click', clickPos);
+};
+const newGame = () => {
+    socket.emit('new game');
+}
+
+canvas.addEventListener('click', userPlay, {once:false});
+</script>
+
+
+</body>
+</html>

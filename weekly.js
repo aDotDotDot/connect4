@@ -270,7 +270,7 @@ const simonTurn = (message, client, connection, game, audioSequence ) => {
                                     }
                                     if(simon_players.size>0){
                                         editMsg += `${simon_players.size} joueur${((simon_players.size>1)?'s':'')} encore en lice.\n`;
-                                        editMsg += `Préparez-vous pour la suite`;
+                                        editMsg += `Tour ${sequence.length} terminé, préparez-vous pour la suite`;
                                     }
                                     msg.edit(editMsg).then(()=>{
                                         fs.unlink(audioSequence, (err)=>{
@@ -476,6 +476,7 @@ bot.on('message', (message) => {
         break;
         case 'simon':
             if(!current_simon_game){
+                current_simon_game = true;
                 message.channel.send(`Qui pour une partie de Simon ?`).then( msg=>{
                     msg.react("\u270B").then(()=>{
                         let filter = (reaction, user) => {
@@ -507,10 +508,12 @@ bot.on('message', (message) => {
                                     });
                                 }else{
                                     msg.edit(`Ok, personne ne veut jouer :(`);
+                                    current_simon_game = false;
                                 }
                             }catch(e){
                                 msg.clearReactions();
                                 msg.edit(`Ok, personne ne veut jouer :(`);
+                                current_simon_game = false;
                             }
                         });
                     })
