@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Pong</title>
+    <style>
+    * {
+        padding: 0;
+        margin: 0;
+    }
+    #options{
+        width: 100%;
+        text-align: center;
+    }
+    </style>
+    <script src="js/phaser.min.js"></script>
+</head>
+<body>
+    <div id="options">
+        Bot <input type="checkbox" id='botleft' onchange="toggleBot()"/>
+        <select id='diffleft' onchange="toggleBot()">
+            <option value="easy">Facile</option>
+            <option selected value="normal">Normal</option>
+            <option value="hard">Difficile</option>
+            <option value="impossible">Impossible</option>
+        </select>
+        <input type="button" value="Start" id='pause' onclick='togglePause()'/>
+        <select id='diffright' onchange="toggleBot()">
+            <option value="easy">Facile</option>
+            <option selected value="normal">Normal</option>
+            <option value="hard">Difficile</option>
+            <option value="impossible">Impossible</option>
+        </select>
+        <input type="checkbox" id='botright' onchange="toggleBot()"/> Bot
+    </div>
+<script>
+    class PongBot{
+        constructor(active = false, difficulty = 'normal', accuracy = 15){
+            this._active = active;
+            this.difficulty = difficulty;
+            this._textDifficulty = difficulty;
+            this._accuracy = accuracy;
+        }
+        set difficulty(diff){
+            this._textDifficulty = diff;
+            switch(diff){
+                case "impossible":
+                    this._difficulty = 1;
+                break;
+                case "hard":
+                    this._difficulty = 0.8;
+                break;
+                case "easy":
+                    this._difficulty = 0.5;
+                break;
+                default:
+                case "normal":
+                    this._difficulty = 0.70;
+                break;
+            }
+        }
+        get difficulty(){
+            return this._difficulty;
+        }
+        set active(b){
+            this._active = b;
+        }
+        get active(){
+            return this._active;
+        }
+        get accuracy(){
+            return this._accuracy;
+        }
+        set accuracy(ac){
+            this._accuracy = ac;
+        }
+    }
+    const game = new Phaser.Game(480, 320, Phaser.AUTO, null, {
+        preload: preload, create: create, update: update
+    });
+    let ball;
+    let paddleLeft, paddleRight;
+    let scoreText = {left:null,right:null};
+    let scores = {left:0,right:0};
+    const velocity = 200;
+    let botLeft = new PongBot(false, "hard");
+    let botRight = new PongBot(true, "hard");
+    function preload() {
+        game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+        game.scale.pageAlignHorizontally = true;
+        game.scale.pageAlignVertically = true;
+
+        game.stage.backgroundColor = '#234567';
+
+        game.load.image('ball', 'img/ball.png');
+        game.load.image('paddleLeft', 'img/paddle_pong.png');
+        game.load.image('paddleRight', 'img/paddle_pong.png');
+    }
+    function create() {
+        game.physics.startSystem(Phaser.Physics.ARCADE);
+        game.physics.arcade.checkCollision.left = false;
+        game.physics.arcade.checkCollision.right = false;
+
+        ball = game.add.sprite(game.world.width*0.5, game.world.height*0.5, 'ball');
+        ball.anchor.set(0.5);
+        game.physics.enable(ball, Phaser.Physics.ARCADE);
+        ball.body.velocity.set(velocity,-1*velocity);
+        ball.body.collideWorldBounds = true;
+        ball.body.bounce.set(1);
+        ball.checkWorldBounds = true;
+        ball.events.onOutOfBounds.add(()=>{
+            if(ball.x < 15){
+                scores.right+=1;
+                scoreText.right.setText(`${scores.right}`)
+                ball.x = game.world.width*0.25;
+                ball.y = game.world.height*Math.random();
+                ball.body.velocity.set(velocity, -1*velocity);
+            }
+            if(ball.x > (game.world.width/2)){
+                scores.left+=1;
+                scoreText.left.setText(`${scores.left}`)
+                ball.x = game.world.width*0.75;
+                ball.y = game.world.height*Math.random();
+                ball.body.velocity.set(-1*velocity, -1*velocity);
+            }
+            //location.reload();
+        }, this);
+
+        paddleLeft = game.add.sprite(15, game.world.height*0.5, 'paddleLeft');
+        paddleLeft.anchor.set(1,0.5);
+        game.physics.enable(paddleLeft, Phaser.Physics.ARCADE);
+        paddleLeft.body.immovable = true;
+
+        paddleRight = game.add.sprite(game.world.width - 5, game.world.height*0.5, 'paddleRight');
+        paddleRight.anchor.set(1,0.5);
+        game.physics.enable(paddleRight, Phaser.Physics.ARCADE);
+        paddleRight.body.immovable = true;
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.keyUpLeft = this.input.keyboard.addKey(Phaser.KeyCode.S);
+        this.keyDownLeft = this.input.keyboard.addKey(Phaser.KeyCode.X);
+        this.pauseKey = new Phaser.Key(game, Phaser.KeyCode.P);
+        this.pauseKey.onDown.add(e=>{
+            console.log('ppp');
+            game.paused = !game.paused;
+        });
+        scoreText.left = game.add.text(15, 5, '0', { font: '18px Arial', fill: '#DAA520' });
+        scoreText.right = game.add.text(game.world.width - 25 , 5, '0', { font: '18px Arial', fill: '#DAA520' });
+        status();
+        game.paused = true;
+    }
+    function update() {
+        game.physics.arcade.collide(ball, paddleLeft, hitPaddle);
+        game.physics.arcade.collide(ball, paddleRight, hitPaddle);
+        scoreText.left.setText(`${scores.left}`);
+        scoreText.right.setText(`${scores.right}`);
+
+        //paddleLeft.y = game.input.y || game.world.height*0.5;
+        //paddleRight.y = game.input.y || game.world.height*0.5;
+        
+        if(!botRight.active){
+            if(this.cursors.up.isDown) {
+                if(paddleRight.y > 0)
+                    paddleRight.y -= 3;
+            }
+            if(this.cursors.down.isDown) {
+                // move down
+                if(paddleRight.y < game.world.height)
+                    paddleRight.y += 3;
+            }
+        }else{
+            if(paddleRight.y < (ball.y + botRight.accuracy))
+                paddleRight.body.velocity.set(0, velocity*botRight.difficulty);
+            if(paddleRight.y > (ball.y - botRight.accuracy))
+                paddleRight.body.velocity.set(0, -velocity*botRight.difficulty);
+            if(paddleRight.y > (game.world.height + 30) || paddleRight.y < -30)
+                paddleRight.body.velocity.set(0, 0);
+        }
+
+        if(!botLeft.active){
+            if(this.keyUpLeft.isDown) {
+                if(paddleLeft.y > 0)
+                    paddleLeft.y -= 3;
+            }
+            if(this.keyDownLeft.isDown) {
+                // move down
+                if(paddleLeft.y < game.world.height)
+                    paddleLeft.y += 3;
+            }
+        }else{
+            if(paddleLeft.y < (ball.y + botLeft.accuracy))
+                paddleLeft.body.velocity.set(0, velocity*botLeft.difficulty);
+            if(paddleLeft.y > (ball.y - botLeft.accuracy))
+                paddleLeft.body.velocity.set(0, -velocity*botLeft.difficulty);
+            if(paddleLeft.y > (game.world.height+30) || paddleLeft.y < -30)
+                paddleLeft.body.velocity.set(0, 0);
+        }
+    }
+    function hitPaddle(ball, paddle){
+        if(ball.x < (game.world.width/2))
+            ball.body.velocity.x = Math.max(velocity,Math.abs(velocity*(paddle.y-ball.y))/15);
+        else
+            ball.body.velocity.x = -Math.max(velocity,Math.abs(velocity*(paddle.y-ball.y))/15);
+    }
+    function togglePause(){
+        toggleBot();
+        game.paused = !game.paused;
+        if(game.paused)
+            document.getElementById('pause').value = "Start";
+        else
+            document.getElementById('pause').value = "Pause";
+    }
+    function toggleBot(side){
+        botLeft.active = document.getElementById('botleft').checked;
+        if(!botLeft.active)
+            paddleLeft.body.velocity.set(0, 0);
+        botLeft.difficulty = document.getElementById('diffleft').value;
+        botRight.active = document.getElementById('botright').checked;
+        if(!botRight.active)
+            paddleRight.body.velocity.set(0, 0);
+        botRight.difficulty = document.getElementById('diffright').value;
+    }
+    function status(){
+        document.getElementById('diffright').value = botRight._textDifficulty;
+        document.getElementById('diffleft').value = botLeft._textDifficulty;
+        document.getElementById('botleft').checked = botLeft.active;
+        document.getElementById('botright').checked = botRight.active;
+    }
+</script>
+</body>
+</html>
