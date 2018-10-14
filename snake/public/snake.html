@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Snake</title>
+    <style>
+    * {
+        padding: 0;
+        margin: 0;
+    }
+    canvas{
+        cursor: none;
+    }
+    </style>
+    <script src="js/phaser.min.js"></script>
+</head>
+<body><script>
+    //the snake is a linked list whith a head (no parent) and a tail (no child)
+    let frCpt = 1;
+    class SnakeNode{
+        constructor(parent = null, next = null, direction = 'right', cx = 0, cy = 0){
+            this._parent = parent;
+            this._next = next;
+            this._direction = direction;
+            this._coords = {x:cx, y:cy};
+        }
+        set parent(sn){
+            this._parent = sn;
+        }
+        get parent(){
+            return this._parent;
+        }
+        set next(sn){
+            this._next = sn;
+        }
+        get next(){
+            return this._next;
+        }
+        set direction(d){
+            this._direction = d;
+        }
+        get direction(){
+            return this._direction;
+        }
+        get x(){
+            return this._coords.x;
+        }
+        get y(){
+            return this._coords.y;
+        }
+        isHead(){
+            return this._parent === null;
+        }
+        isTail(){
+            return this._parent !== null && this._next === null;
+        }
+    }
+    class Snake{
+        constructor(startx = 30, starty = 30, direction = 'right'){
+            this._nodes  = new SnakeNode(null, new SnakeNode(null, null, direction, startx - 20, starty), direction, startx, starty);
+            this._nodes.next.parent = this._nodes;
+        }
+        removeTail(){
+            if(this.size < 2)
+                return;
+            
+            let n = this._nodes;
+            while(n.next !== null){
+                n = n.next;
+            }
+            n.parent.next = null;
+        }
+        addHead(direction, x, y){
+            this._nodes = new SnakeNode(null, this._nodes, direction, x, y);
+            this._nodes.next.parent = this._nodes;
+        }
+        get nodes(){
+            return this._nodes;
+        }
+        get size(){
+            let cpt = 1;
+            let n = this._nodes.next;
+            while(n !== null){
+                n = n.next;
+                cpt++;
+            }
+            return cpt;
+        }
+    }
+    class TakenCoords{
+        constructor(){
+            this._coords = new Array();
+        }
+        set coords(ar){
+            this._coords.push(ar);
+        }
+        checkCoords(x,y){
+            return this._coords.reduce( (a,e)=>{
+                return (a && !(e[0]==x && e[1]==y));
+            }, true);
+        }
+        clear(){
+            this._coords = new Array();
+        }
+    }
+    class Speed{
+        constructor(){
+            this._speeds = [[10, 8, 1], [150, 6, 2], [350, 3, 4], [500, 2, 8]];
+        }
+        getFPS(score){
+            return this._speeds.reduce( (a,c) => {
+                if(c[0] <= score)
+                    return c[1];
+                else
+                    return a;
+            }, 12);
+        }
+        getMultiplier(score){
+            return this._speeds.reduce( (a,c) => {
+                if(c[0] <= score)
+                    return c[2];
+                else
+                    return a;
+            }, 1);
+        }
+    }
+    const dangerNoodle = new Snake();
+
+    const game = new Phaser.Game(1280, 720, Phaser.AUTO, null, {
+        preload: preload, create: create, update: update
+    });
+    let bodyParts = [];
+    let burger = null;
+    const takenCoords = new TakenCoords();
+    let score = 0;
+    const velocity = 200;
+    let scoreText, hiScoreText;
+    let hiScore = 0;
+    const textColor = '#FF5407';
+    let hardWalls = false;
+    let dirUpdate = false;
+    const speed = new Speed();
+    if(localStorage.snake_hi_score)
+        hiScore = localStorage.snake_hi_score;
+    function preload() {
+        game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+        game.scale.pageAlignHorizontally = true;
+        game.scale.pageAlignVertically = true;
+
+        //game.stage.backgroundColor = '#234567';
+        game.load.image('background', 'img/background_snake.png');
+
+
+        game.load.image('ball', 'img/ball_orange.png');//20x20
+        game.load.image('head_up', 'img/head_up.png');//20x20
+        game.load.image('head_down', 'img/head_down.png');//20x20
+        game.load.image('head_left', 'img/head_left.png');//20x20
+        game.load.image('head_right', 'img/head_right.png');//20x20
+        game.load.image('tail_up', 'img/tail_up.png');//20x20
+        game.load.image('tail_down', 'img/tail_down.png');//20x20
+        game.load.image('tail_left', 'img/tail_left.png');//20x20
+        game.load.image('tail_right', 'img/tail_right.png');//20x20
+        game.load.image('burger', 'img/burger.gif');//20x20
+
+    }
+    function create() {
+        const background = game.add.tileSprite(0, 0, game.world.width, game.world.height, 'background');
+        game.physics.startSystem(Phaser.Physics.ARCADE);
+        this.direction = 'right';
+
+        let last = dangerNoodle.nodes;
+        while(last !== null){
+            let ball;
+            if(last.isHead()){
+                ball = game.add.sprite(last.x, last.y, 'head_'+last.direction);
+            }else if(last.isTail()){
+                ball = game.add.sprite(last.x, last.y, 'tail_'+last.direction);
+            }else{
+                ball = game.add.sprite(last.x, last.y, 'ball');
+            }
+            takenCoords.coords = [last.x, last.y];
+            ball.anchor.set(0.5);
+            game.physics.enable(ball, Phaser.Physics.ARCADE);
+            ball.body.collideWorldBounds = true;
+            bodyParts.push(ball);
+            last = last.next;
+        }
+        this.cursors = this.input.keyboard.createCursorKeys();
+        scoreText = game.add.text(15, 5, 'Score : 0', { font: '18px Arial', fontWeight: 'bold', fill: textColor });
+        scoreText.stroke = "#000000";
+        scoreText.strokeThickness = 1;
+        //  Apply the shadow to the Stroke only
+        scoreText.setShadow(2, 2, "#333333", 2, true, false);
+
+        hiScoreText = game.add.text(game.world.width - 180 , 5, `Best : ${hiScore}`, { font: '18px Arial', fontWeight: 'bold', fill: textColor });
+        hiScoreText.stroke = "#000000";
+        hiScoreText.strokeThickness = 1;
+        //  Apply the shadow to the Stroke only
+        hiScoreText.setShadow(2, 2, "#333333", 2, true, false);
+    }
+    function update() {
+        if(dirUpdate){
+            if(this.cursors.up.isDown) {
+                dirUpdate = false;
+                if(this.direction != 'down')
+                    this.direction = 'up';
+                //else
+                //  gameOver();
+            }
+            if(this.cursors.down.isDown) {
+                dirUpdate = false;
+                if(this.direction != 'up')
+                    this.direction = 'down';
+                //else
+                //  gameOver();
+            }
+            if(this.cursors.left.isDown) {
+                dirUpdate = false;
+                if(this.direction != 'right')
+                    this.direction = 'left';
+                //else
+                //  gameOver();
+            }
+            if(this.cursors.right.isDown) {
+                dirUpdate = false;
+                if(this.direction != 'left')
+                    this.direction = 'right';
+                //else
+                //  gameOver();
+            }
+        }
+        if(frCpt%(speed.getFPS(score))==0){
+            dirUpdate = true;
+            bodyParts.map(e=>{
+                e.destroy();
+            });
+            let next_x = dangerNoodle.nodes.x
+            let next_y = dangerNoodle.nodes.y
+            if(this.direction == 'left')
+                next_x-=20;
+            if(this.direction == 'right')
+                next_x+=20;
+            if(this.direction == 'up')
+                next_y-=20;
+            if(this.direction == 'down')
+                next_y+=20;
+            if(!hardWalls){
+                if(next_y > game.world.height)
+                    next_y = 30;
+                if(next_y < 0)
+                    next_y = game.world.height - 30;
+                if(next_x < 0)
+                    next_x = game.world.width - 30;
+                if(next_x > game.world.width)
+                    next_x = 30;
+            }
+            if(next_y > game.world.height 
+                || next_x > game.world.width 
+                || next_x < 0 
+                || next_y < 0
+                || !takenCoords.checkCoords(next_x, next_y)){
+                gameOver();
+            }
+            dangerNoodle.addHead(this.direction, next_x, next_y);
+            if(burger && next_x == burger.x && next_y == burger.y){
+                burger.destroy();
+                burger = null;
+                score+=5*(speed.getMultiplier(score));
+            }else{
+                dangerNoodle.removeTail();
+            }
+            
+            bodyParts = [];
+            let last = dangerNoodle.nodes;
+            takenCoords.clear();
+            while(last !== null){
+                let ball;
+                if(last.isHead()){
+                    ball = game.add.sprite(last.x, last.y, 'head_'+last.direction);
+                }else if(last.isTail()){
+                    ball = game.add.sprite(last.x, last.y, 'tail_'+last.direction);
+                }else{
+                    ball = game.add.sprite(last.x, last.y, 'ball');
+                }   
+                takenCoords.coords = [last.x, last.y];
+                ball.anchor.set(0.5);
+                game.physics.enable(ball, Phaser.Physics.ARCADE);
+                ball.body.collideWorldBounds = true;
+                bodyParts.push(ball);
+                last = last.next;
+            }
+        }
+        if(!burger){
+            let bx = 30 + 20 * Math.floor(Math.random()*(game.world.width - 20*2)/20);
+            let by = 30 + 20 * Math.floor(Math.random()*(game.world.height - 20*2)/20);
+            while(!takenCoords.checkCoords(bx, by)){
+                bx = 30 + 20 * Math.floor(Math.random()*(game.world.width - 20*2)/20);
+                by = 30 + 20 * Math.floor(Math.random()*(game.world.height - 20*2)/20);
+            }
+            burger = game.add.sprite(bx, by, 'burger');
+            burger.anchor.set(0.5);
+        }
+        scoreText.setText(`Score : ${score}`);
+        frCpt++;
+    }
+    function gameOver(){
+        game.paused = true;
+        let hasScored = false;
+        if(hiScore < score){
+            hiScore = score;
+            hasScored = true;
+            localStorage.setItem('snake_hi_score', hiScore);
+        }
+        if(confirm(`Game Over !${hasScored?`\nNew high score : ${hiScore}`:''}\n Try again ?`)){
+            document.location.reload();
+        }else{
+            game.world.removeAll();
+        }
+    }
+</script></body>
+</html>
