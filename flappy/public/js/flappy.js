@@ -2,20 +2,34 @@ const mainState = {
     preload: function() { 
         game.load.image('bird', 'assets/bird_filler.png');
         game.load.image('pipe', 'assets/pipe_filler.png');
+        //https://opengameart.org/content/brick-texture
+        game.load.image('bricks', 'assets/bricks.png');
         //based on art by Hansjörg Malthaner : http://opengameart.org/users/varkalandar
         game.load.image('star', 'assets/throwing.png');
+
+        //assets from https://opengameart.org/content/flappy-duck-sprite-sheets
+        //author : http://bevouliin.com/
+        //LICENSE http://static.opengameart.org/OGA-BY-3.0.txt
+        game.load.spritesheet('flying', 'assets/flying.png', 50, 36, 8);
+        game.load.spritesheet('hit', 'assets/hit.png', 50, 40, 2);
+        
+        game.load.image('background', 'assets/background_flappy.png');
 
         game.load.audio('jump', 'assets/jump.wav');
         game.load.audio('bump', 'assets/bump.wav');
     },
 
     create: function() { //we need acces to `this` so no ()=>
+        game.add.tileSprite(0, 0, 400, 490, 'background');
         game.stage.backgroundColor = '#71c5cf';
         game.physics.startSystem(Phaser.Physics.ARCADE);//we will hit things :)
 
         /* Bird */
         //initial position x=100 and y=245 (middle vertically)
-        this.bird = game.add.sprite(100, 245, 'bird');
+        this.bird = game.add.sprite(100, 245, 'flying');
+        const fly = this.bird.animations.add('fly');
+        this.bird.animations.play('fly', 30, true);
+
         this.bird.anchor.setTo(-0.2, 0.5);//needed to change the origin point for the rotation
 
         //Needed for: movements, gravity, collisions, yeah physics !
@@ -63,6 +77,7 @@ const mainState = {
         //Next, if we hit a pipe, we animate the bird to fall down
         //game.physics.arcade.overlap(this.bird, this.pipes, this.restartGame, null, this);
         game.physics.arcade.overlap(this.bird, this.pipes, this.hitPipe, null, this);
+        this.bird.bringToTop();
 
         /*this.pipes.forEach((p) => {
             p.angle += Math.floor(Math.random()*18);
@@ -72,7 +87,9 @@ const mainState = {
     jump: function() {
         //dead bird can't fly
         if (this.bird.alive === false)
-            return;  
+            return;
+        if(game.paused)
+            game.paused = false;
         //bump up
         this.bird.body.velocity.y = -350;
         //play the sound
@@ -98,7 +115,7 @@ const mainState = {
     //we'll use this repeatedly to add an obstacle 
     addPipe: function(x, y) {
         //We create a pipe at the position x and y
-        const pipe = game.add.sprite(x, y, 'pipe');
+        const pipe = game.add.sprite(x, y, 'bricks');
         //pipe.anchor.setTo(0.5, 0.5);
         //We add the pipe to the group of pipes
         this.pipes.add(pipe);
@@ -116,9 +133,9 @@ const mainState = {
         const hole = 1 + Math.floor(Math.random() * 5);
         //We add the pipes (50x50 px so 8 of them, minus 2 for the hole )
         // With one big hole at position 'hole' and 'hole + 1'
-        for (let i = 0; i < 8; i++)
+        for (let i = 0; i < 10; i++)
             if (i != hole && i != hole + 1) 
-                this.addPipe(400, i * 60 + 10);//adds the pipe near the right of the game
+                this.addPipe(400, i * 50);//adds the pipe near the right of the game
         
         //We can update the score now
         this.score += 1;
@@ -135,6 +152,12 @@ const mainState = {
         this.bird.alive = false;
         //and we hit something, better use sound to tell everyone
         this.bumpSound.play();
+        //animating the hit
+        this.bird.loadTexture('hit');
+        const hit = this.bird.animations.add('hit');
+        this.bird.animations.play('hit', 5, true);
+
+
         //The game is finished, we stop the timer for the obstacles
         game.time.events.remove(this.timer);
         //And we stop the movement of the existing pipes
