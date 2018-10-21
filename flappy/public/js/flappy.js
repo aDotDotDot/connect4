@@ -97,11 +97,11 @@ const mainState = {
     },
     //Make the bird jump, or fly, I don't know, something like going up
     jump: function() {
+        if(game.paused)
+            game.paused = false;
         //dead bird can't fly
         if (this.bird.alive === false)
             return;
-        if(game.paused)
-            game.paused = false;
         //bump up
         this.bird.body.velocity.y = -350;
         //play the sound
@@ -112,6 +112,7 @@ const mainState = {
         animation.to({angle: -20}, 100);
         //Then, we start the animation
         animation.start();
+
     },
 
     //Restart the game, when inevitably our bird will die
@@ -147,7 +148,7 @@ const mainState = {
         // With one big hole at position 'hole' and 'hole + 1'
         for (let i = 0; i < 10; i++){
             delta = ((i<=hole)?-12:13);
-            if (i != hole && i != hole + 1) 
+            if (i != hole && i != hole + 1)
                 this.addPipe(400, i * 50 + delta);//adds the pipe near the right side of the game
         }
         //We can update the score now
