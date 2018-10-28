@@ -144,10 +144,15 @@ const mainState = {
     addPipesColumn: function() {
         //The hole will be between 1 and 5 so we can have 2 spaces
         const hole = 1 + Math.floor(Math.random() * 7);
+        const parsedUrl = new URL(location.href);
         //We add the pipes (50x50 px so 8 of them, minus 2 for the hole )
         // With one big hole at position 'hole' and 'hole + 1'
         for (let i = 0; i < 10; i++){
-            delta = ((i<=hole)?-12:13);
+            if(parsedUrl.hash == '#easy')
+                delta = ((i<=hole)?-25:25);
+            else
+                delta = ((i<=hole)?-12:13);
+
             if (i != hole && i != hole + 1)
                 this.addPipe(400, i * 50 + delta);//adds the pipe near the right side of the game
         }
