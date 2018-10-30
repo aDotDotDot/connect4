@@ -11,8 +11,8 @@
         margin: 0;
     }
     div#gameContainer{
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(8, 130px);
         align-items: center;
         justify-content: center;
         width: 100%;
@@ -38,8 +38,13 @@
         color: red;
         background: url('assets/bg_computer.png');
     }
+    div#cmdbox{
+        position: absolute;
+        bottom: 30px;
+        left:30%;
+    }
     div button{
-        background-color: #DAA520; /* Green */
+        background-color: #DAA520; /* gold */
         border: none;
         color: white;
         padding: 15px 32px;
@@ -48,13 +53,36 @@
         display: inline-block;
         font-size: 16px;
         margin-top: 75px;
+        cursor: pointer;
+    }
+    div span{
+        background-color: #1a8462; /* teal */
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin-top: 75px;
+        margin-left:0;
+        margin-right:0;
+    }
+    div span.empty{
+        display: none;
     }
     </style>
     <script src="js/memory.js"></script>
 </head>
 <body>
     <div id='gameContainer'>
+        
+    </div>
+    <div id='cmdbox'>
         <button onclick="start()">Start</button>
+        <span id='cptclick' class='empty'></span>
+        <span id='remaining' class='empty'></span>
+        <span id='bestScore' class='empty'></span>
     </div>
 </body>
 </html>

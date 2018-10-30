@@ -92,6 +92,8 @@ class Memory{
     }
     shuffle(){
         this._finished = false;
+        this._tries = 0;
+        this._foundSoFar = 0;
         const it = randomUniqueGenerator(GAME_SIZE*2);
         let namesTaken = [];
         for(let i=0;i<GAME_SIZE;i++){
@@ -140,6 +142,8 @@ class Memory{
             }
             this.render();
             if(this._foundSoFar == GAME_SIZE){
+                if( this._tries < localStorage.memory_hi_score)
+                    localStorage.memory_hi_score = this._tries;
                 this._finished = true;
                 setTimeout(()=>{
                     this.render();
@@ -156,6 +160,7 @@ class Memory{
         }, 250);
     }
     render(){
+        this.inforender();
         let container = document.getElementById('gameContainer');
         container.innerHTML='';
         this._cards.map(e=>{
@@ -174,19 +179,37 @@ class Memory{
         });
         if(this._finished){
             if(confirm('Game Over\nTry again ?')){
+                this._finished = false;
+                this._tries = 0;
+                this._foundSoFar = 0;
                 this.shuffle();
                 this.render();
             }else{
                 this._finished = false;
-                container.innerHTML = `<h1>Finished in ${this._tries} clicks</h1>`;
+                container.innerHTML = ``;
             }
         }
-
+    }
+    inforender(){
+        let box_cpt = document.getElementById('cptclick');
+        let box_best = document.getElementById('bestScore');
+        let box_remaining = document.getElementById('remaining');
+        box_remaining.innerHTML = `${(GAME_SIZE - this._foundSoFar)} pair${(GAME_SIZE - this._foundSoFar)>1?'s':''} remaining`;
+        box_remaining.classList.remove('empty');
+        if(this._tries>0){
+            box_cpt.innerHTML = `${this._tries} click${this._tries>1?'s':''}`;
+            box_cpt.classList.remove('empty');
+        }
+        if(localStorage.memory_hi_score){
+            box_best.innerHTML = `Best : ${localStorage.memory_hi_score}`;
+            box_best.classList.remove('empty');
+        }
     }
 }
 
 const m = new Memory();
 //m.render();
 function start(){
+    m.shuffle();
     m.render();
 }
