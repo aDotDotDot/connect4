@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+    * {
+        padding: 0;
+        margin: 0;
+    }
+    div#gameContainer{
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+    div.card{
+        /*flex: 1 0 11%;
+        margin: 2px;*/
+        width: 130px;
+        height: 130px;
+    }
+    div.card img{
+        margin-left: 35px;
+        margin-top: 13px;        
+    }
+    div.found{
+        color: blue;
+        background: url('assets/bg_computer_on.png');
+    }
+    div.back img{
+        display: none;
+    }
+    div.back{
+        color: red;
+        background: url('assets/bg_computer.png');
+    }
+    div button{
+        background-color: #DAA520; /* Green */
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin-top: 75px;
+    }
+    </style>
+    <script src="js/memory.js"></script>
+</head>
+<body>
+    <div id='gameContainer'>
+        <button onclick="start()">Start</button>
+    </div>
+</body>
+</html>
