@@ -38,12 +38,19 @@ class Card{
         this._position = position;
         this._found = false;
         this._partial = false;
+        this._flash = false;
     }
     get name(){
         return this._name;
     }
     get path(){
         return this._path;
+    }
+    get flash(){
+        return this._flash;
+    }
+    set flash(v){
+        this._flash = v;
     }
     get found(){
         return this._found;
@@ -88,12 +95,15 @@ class Memory{
         this._finished = false;
         this._foundSoFar = 0;
         this._tries = 0;
+        this._sound = new Map();
+        this.setupSound();
         this.shuffle();
     }
     shuffle(){
         this._finished = false;
         this._tries = 0;
         this._foundSoFar = 0;
+        this._currentName = null;
         const it = randomUniqueGenerator(GAME_SIZE*2);
         let namesTaken = [];
         for(let i=0;i<GAME_SIZE;i++){
@@ -109,6 +119,13 @@ class Memory{
             this._cards[p1] = card1;
             this._cards[p2] = card2;
         }
+        this.inforender();
+    }
+    setupSound(){
+        const errS = document.createElement('audio');
+        errS.src = 'assets/error.ogg';
+        errS.type = 'audio/ogg';
+        this._sound.set('error', errS);
     }
     click(id){
         if(id >= 0 && id < (GAME_SIZE*2)){
@@ -129,6 +146,7 @@ class Memory{
                         this._currentName = null;
                     break;
                     case 'no match':
+                        this._sound.get('error').play();
                         this.flash(id);
                         this._currentName.partial = false;
                         this._currentName = null;
@@ -152,10 +170,10 @@ class Memory{
         }
     }
     flash(id){
-        this._cards[id].partial = true;
+        this._cards[id].flash = true;
         this.render();
         setTimeout(() => {
-            this._cards[id].partial = false;
+            this._cards[id].flash = false;
             this.render();
         }, 250);
     }
@@ -167,7 +185,7 @@ class Memory{
             let cd = document.createElement("div");
             cd.innerHTML = `<img src='${e.path}'></img>`;
             cd.classList.add('card');
-            if(e.partial || e.found)
+            if(e.partial || e.found || e.flash)
                 cd.classList.add('found');
             else
                 cd.classList.add('back');
@@ -191,24 +209,29 @@ class Memory{
         }
     }
     inforender(){
-        let box_cpt = document.getElementById('cptclick');
-        let box_best = document.getElementById('bestScore');
-        let box_remaining = document.getElementById('remaining');
-        box_remaining.innerHTML = `${(GAME_SIZE - this._foundSoFar)} pair${(GAME_SIZE - this._foundSoFar)>1?'s':''} remaining`;
-        box_remaining.classList.remove('empty');
-        if(this._tries>0){
-            box_cpt.innerHTML = `${this._tries} click${this._tries>1?'s':''}`;
-            box_cpt.classList.remove('empty');
-        }
-        if(localStorage.memory_hi_score){
-            box_best.innerHTML = `Best : ${localStorage.memory_hi_score}`;
-            box_best.classList.remove('empty');
+        try{
+            let box_cpt = document.getElementById('cptclick');
+            let box_best = document.getElementById('bestScore');
+            let box_remaining = document.getElementById('remaining');
+            box_remaining.innerHTML = `${(GAME_SIZE - this._foundSoFar)} pair${(GAME_SIZE - this._foundSoFar)>1?'s':''} remaining`;
+            box_remaining.classList.remove('empty');
+            if(this._tries>0){
+                box_cpt.innerHTML = `${this._tries} click${this._tries>1?'s':''}`;
+                box_cpt.classList.remove('empty');
+            }else
+                box_cpt.classList.add('empty');
+            if(localStorage.memory_hi_score){
+                box_best.innerHTML = `Best : ${localStorage.memory_hi_score}`;
+                box_best.classList.remove('empty');
+            }else
+                box_best.classList.add('empty');
+        }catch(err){
+
         }
     }
 }
 
 const m = new Memory();
-//m.render();
 function start(){
     m.shuffle();
     m.render();

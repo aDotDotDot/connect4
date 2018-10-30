@@ -10,6 +10,9 @@
         padding: 0;
         margin: 0;
     }
+    body{
+        background: rgb(207, 205, 205);
+    }
     div#gameContainer{
         display: grid;
         grid-template-columns: repeat(8, 130px);
@@ -18,10 +21,10 @@
         width: 100%;
     }
     div.card{
-        /*flex: 1 0 11%;
-        margin: 2px;*/
+        margin: 2px;
         width: 130px;
         height: 130px;
+        cursor: pointer;
     }
     div.card img{
         margin-left: 35px;
@@ -38,10 +41,15 @@
         color: red;
         background: url('assets/bg_computer.png');
     }
+    div.card:hover{
+        margin:1px;
+        border:solid rgba(255, 0, 149, 0.705) 1px;
+    }
     div#cmdbox{
         position: absolute;
         bottom: 30px;
         left:30%;
+        overflow: hidden;
     }
     div button{
         background-color: #DAA520; /* gold */
@@ -79,10 +87,12 @@
         
     </div>
     <div id='cmdbox'>
-        <button onclick="start()">Start</button>
+        <button onclick="start()">New Game</button>
         <span id='cptclick' class='empty'></span>
         <span id='remaining' class='empty'></span>
         <span id='bestScore' class='empty'></span>
     </div>
+    <audio id="click" style="display:none;" src="assets/click.ogg" ></audio>
+    <audio id="click" style="display:none;" src="assets/error.ogg" ></audio>
 </body>
 </html>
