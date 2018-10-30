@@ -96,6 +96,7 @@ class Memory{
         this._foundSoFar = 0;
         this._tries = 0;
         this._sound = new Map();
+        this._first = true;
         this.setupSound();
         this.shuffle();
     }
@@ -104,6 +105,7 @@ class Memory{
         this._tries = 0;
         this._foundSoFar = 0;
         this._currentName = null;
+        this._first = true;
         const it = randomUniqueGenerator(GAME_SIZE*2);
         let namesTaken = [];
         for(let i=0;i<GAME_SIZE;i++){
@@ -178,35 +180,40 @@ class Memory{
         }, 250);
     }
     render(){
-        this.inforender();
-        let container = document.getElementById('gameContainer');
-        container.innerHTML='';
-        this._cards.map(e=>{
-            let cd = document.createElement("div");
-            cd.innerHTML = `<img src='${e.path}'></img>`;
-            cd.classList.add('card');
-            if(e.partial || e.found || e.flash)
-                cd.classList.add('found');
-            else
-                cd.classList.add('back');
-            const self = this;
-            cd.addEventListener('click', function () {
-                self.click(e.position);
+        return new Promise( (resolve, reject)=>{
+            this.inforender();
+            let container = document.getElementById('gameContainer');
+            container.innerHTML='';
+            this._cards.map(e=>{
+                let cd = document.createElement("div");
+                cd.innerHTML = `<img src='${e.path}'></img>`;
+                cd.classList.add('card');
+                if(e.partial || e.found || e.flash)
+                    cd.classList.add('found');
+                else
+                    cd.classList.add('back');
+                const self = this;
+                if(!e.found){
+                    cd.addEventListener('click', function () {
+                        self.click(e.position);
+                    });
+                }
+                container.appendChild(cd);
             });
-            container.appendChild(cd);
-        });
-        if(this._finished){
-            if(confirm('Game Over\nTry again ?')){
-                this._finished = false;
-                this._tries = 0;
-                this._foundSoFar = 0;
-                this.shuffle();
-                this.render();
-            }else{
-                this._finished = false;
-                container.innerHTML = ``;
+            if(this._finished){
+                if(confirm('Game Over\nTry again ?')){
+                    this._finished = false;
+                    this._tries = 0;
+                    this._foundSoFar = 0;
+                    this.shuffle();
+                    this.render();
+                }else{
+                    this._finished = false;
+                    container.innerHTML = ``;
+                }
             }
-        }
+            resolve(true);
+        });
     }
     inforender(){
         try{
@@ -234,5 +241,6 @@ class Memory{
 const m = new Memory();
 function start(){
     m.shuffle();
-    m.render();
+    m.render().then(()=>{
+    }).catch(e=>console.error);
 }
